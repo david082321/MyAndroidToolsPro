@@ -10,9 +10,29 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import cn.wq.myandroidtoolspro.R;
+import cn.wq.myandroidtoolspro.component.ComponentListLoader;
 import cn.wq.myandroidtoolspro.recyclerview.toolbar.BaseFragment;
 
-public class ReceiverParentFragment extends BaseFragment{
+public class ReceiverParentFragment extends BaseFragment implements ComponentListLoader.Host {
+    private ComponentListLoader.Session session;
+    private boolean resumedBefore;
+
+    @Override public ComponentListLoader.Session getComponentSession() {
+        if (session == null) session = ComponentListLoader.get(getContext()).newSession(1);
+        return session;
+    }
+
+    @Override public void onDestroyView() {
+        if (session != null) session.close();
+        session = null;
+        super.onDestroyView();
+    }
+
+    @Override public void onResume() {
+        super.onResume();
+        if (resumedBefore && session != null) session.refresh();
+        resumedBefore = true;
+    }
 	@Override
 	public void onActivityCreated(Bundle savedInstanceState) {
 		super.onActivityCreated(savedInstanceState);
@@ -23,6 +43,7 @@ public class ReceiverParentFragment extends BaseFragment{
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
 			Bundle savedInstanceState) {
         View rootView=inflater.inflate(R.layout.fragment_component_parent, container, false);
+        resumedBefore = false;
         ViewPager mViewPager = (ViewPager) rootView.findViewById(R.id.view_pager);
         mViewPager.setAdapter(new MyPagerAdapter(this));
         mViewPager.setCurrentItem(1);

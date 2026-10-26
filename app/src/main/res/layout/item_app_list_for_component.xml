@@ -35,6 +35,16 @@
         android:textColor="@color/actionbar_color"/>
 
     <TextView
+        android:id="@+id/ifw_num"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:textAppearance="?attr/textAppearanceListItem"
+        android:textColor="@color/component_ifw_count_light"
+        android:visibility="gone"/>
+
+    <TextView
         android:id="@+id/disabled_num"
         android:layout_width="0dp"
         android:layout_height="wrap_content"

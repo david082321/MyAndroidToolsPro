@@ -13,7 +13,7 @@ android {
         minSdkVersion 16
         targetSdkVersion 28
         versionCode new Date().format("yyyyMMddHH").toInteger() //92
-        versionName "1.6.9.beta"
+        versionName "1.7.0.beta"
         multiDexEnabled true
         //https://developer.android.com/guide/topics/graphics/vector-drawable-resources
         //使用app:srcCompat兼容21以前的版本，否则编译时vector会自动生成各分辨率的png图标

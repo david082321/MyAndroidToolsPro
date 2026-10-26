@@ -82,12 +82,11 @@ public class Utils {
     //    private final static String SERVICE_START_MARK_PACKAGE = "    packageName=";
 //    private final static String SERVICE_START_MARK_PROCESS = "    processName=";
     private final static String SERVICE_START_MARK_APP = "    app=";
-    private final static Pattern SERVICE_RECORD_PATTERN = Pattern.compile("[\\w]+ [\\w]+ ([\\w.]+)/([\\w.]+)\\}");
+    private final static Pattern SERVICE_RECORD_PATTERN = Pattern.compile(
+            "\\S+\\s+u\\d+\\s+([\\w.$]+)/([^\\s}:]+)(?::[^\\s}]*)?(?:\\s+[^}]*)?\\}");
     private final static Pattern SERVICE_APP_PATTERN = Pattern.compile(" +app=ProcessRecord\\{[\\w]+ ([\\d]+):[\\S]+");
-    //adb 中 grep 只能用-E 支持多个搜索条件，而且不用转义;不能直接用|分隔
-    //"dumpsys activity services | grep -E \"ServiceRecord{|processName=\"";
-    private final static String COMMAND_GET_RUNNING_SERVICE_FOR_ALL = "dumpsys activity s | grep -E \"ServiceRecord{|app=\"";
-    private final static String COMMAND_GET_RUNNING_SERVICE_FOR_SINGLE = "dumpsys activity s %s| grep -E \"ServiceRecord{|app=\"";
+    private final static String COMMAND_GET_RUNNING_SERVICE_FOR_ALL = "dumpsys activity s | grep -F -e \"ServiceRecord{\" -e \"app=\"";
+    private final static String COMMAND_GET_RUNNING_SERVICE_FOR_SINGLE = "dumpsys activity s %s | grep -F -e \"ServiceRecord{\" -e \"app=\"";
 
     public static String trimFor160(String name) {
         return name.replaceAll(String.valueOf((char) 160), "");
@@ -724,9 +723,12 @@ public class Utils {
             if (rInfo.restarting != 0 || rInfo.pid == 0) {
                 continue;
             }
-            if (rInfo.service != null && rInfo.service.getPackageName().equals(packageName)
-                    && rInfo.service.getClassName().equals(className)) {
-                return true;
+            if (rInfo.service != null && rInfo.service.getPackageName().equals(packageName)) {
+                String runningClass = rInfo.service.getClassName();
+                int instance = runningClass.indexOf(':');
+                if (instance >= 0) runningClass = runningClass.substring(0, instance);
+                if (runningClass.startsWith(".")) runningClass = packageName + runningClass;
+                if (runningClass.equals(className)) return true;
             }
         }
         return false;

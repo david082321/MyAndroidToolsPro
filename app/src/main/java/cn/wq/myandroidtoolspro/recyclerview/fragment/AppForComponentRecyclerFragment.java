@@ -8,16 +8,18 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.database.sqlite.SQLiteDatabase;
-import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
+import android.os.Parcelable;
+import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.LocalBroadcastManager;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.RecyclerView;
@@ -28,8 +30,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Filter;
-import android.widget.Filterable;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -39,8 +39,9 @@ import java.util.List;
 import java.util.Locale;
 
 import cn.wq.myandroidtoolspro.BuildConfig;
+import cn.wq.myandroidtoolspro.BaseActivity;
 import cn.wq.myandroidtoolspro.R;
-import cn.wq.myandroidtoolspro.helper.DBHelper;
+import cn.wq.myandroidtoolspro.component.ComponentListLoader;
 import cn.wq.myandroidtoolspro.helper.Utils;
 import cn.wq.myandroidtoolspro.model.AppEntry;
 import cn.wq.myandroidtoolspro.recyclerview.base.RecyclerListView;
@@ -51,210 +52,153 @@ public class AppForComponentRecyclerFragment extends SearchRecyclerListFragment
     private boolean isSystem;
     private int type;
     private ComponentAdapter mAdapter;
-    private LoadComponentTask mTask;
     private SortChangeReceiver mChangeReceiver;
-    private int clicked_pos = -1;
-    private static int mReceiverFlag = 0;
-    private AsyncTask<Integer, Void, Integer> loadServiceTask;
-
     private Context mContext;
+    private ComponentListLoader.Session session;
+    private boolean ownsSession;
+    private Runnable unsubscribe;
+    private int viewGeneration;
+    private String queryBefore = "";
+    private Parcelable listState;
+    private boolean showIfwCounts;
 
-    @Override
-    public void onAttach(Context context) {
+    @Override public void onAttach(Context context) {
         super.onAttach(context);
         mContext = context;
     }
 
     public static AppForComponentRecyclerFragment newInstance(boolean isSystem, int type) {
-        AppForComponentRecyclerFragment f = new AppForComponentRecyclerFragment();
-
-        Bundle bundle = new Bundle();
-        bundle.putBoolean("isSystem", isSystem);
-        bundle.putInt("type", type);
-        f.setArguments(bundle);
-        return f;
+        AppForComponentRecyclerFragment fragment = new AppForComponentRecyclerFragment();
+        Bundle args = new Bundle();
+        args.putBoolean("isSystem", isSystem);
+        args.putInt("type", type);
+        fragment.setArguments(args);
+        return fragment;
     }
 
-    @Override
-    public void onActivityCreated(Bundle savedInstanceState) {
+    @Override public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        Utils.debug(getClass().getSimpleName() + " >> " + isSystem + " , " + type + " , " + (mAdapter == null));
-        if (mAdapter == null) {
-            Bundle bundle = getArguments();
-            isSystem = bundle.getBoolean("isSystem");
-            type = bundle.getInt("type");
-
-            mAdapter = new ComponentAdapter(mContext);
-            setAdapter(mAdapter);
-
-            executeTask();
-        } else {
-            if (mAdapter.getItemCount() == 0) {
-                executeTask();
-            } else if (clicked_pos >= 0) {
-                mAdapter.updateLine(clicked_pos, type);
-            }
+        isSystem = getArguments().getBoolean("isSystem");
+        type = getArguments().getInt("type");
+        showIfwCounts = type != 3;
+        if (mAdapter == null) mAdapter = new ComponentAdapter();
+        setAdapter(mAdapter);
+        if (savedInstanceState != null) {
+            queryBefore = savedInstanceState.getString("componentQuery", queryBefore);
+            listState = savedInstanceState.getParcelable("componentScroll");
         }
-    }
-
-    private void executeTask() {
-        if (mTask != null) {
-            mTask.cancel(true);
-            mTask = null;
-        }
-        mTask = new LoadComponentTask();
-        if (Build.VERSION.SDK_INT >= 11) {
-            mTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        } else
-            mTask.execute();
-    }
-
-    private class LoadComponentTask extends AsyncTask<Void, Void, List<AppEntry>> {
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            setListShown(false, true);
-        }
-
-        @Override
-        protected void onPostExecute(List<AppEntry> result) {
-            super.onPostExecute(result);
-            if (isCancelled()) {
-                return;
-            }
-            mAdapter.setData(result);
-            scrollToPosition(0);
-            if (isResumed()) {
-                setListShown(true, true);
+        Fragment parent = getParentFragment();
+        ownsSession = !(parent instanceof ComponentListLoader.Host);
+        session = ownsSession ? ComponentListLoader.get(mContext).newSession(type)
+                : ((ComponentListLoader.Host) parent).getComponentSession();
+        final int generation = ++viewGeneration;
+        setListShown(false, false);
+        unsubscribe = session.observe(result -> {
+            if (generation != viewGeneration || !isAdded() || getView() == null) return;
+            if (result.error != null) {
+                Utils.err("ComponentList", "Cannot load component list", result.error);
+                setEmptyText(getString(R.string.component_load_failed));
+                if (getUserVisibleHint()) Toast.makeText(mContext, R.string.component_load_failed, Toast.LENGTH_LONG).show();
             } else {
-                setListShown(true, false);
-            }
-
-            if (type == 1) {
-                mReceiverFlag |= (isSystem ? 0x1 : 0x2);
-                if (mReceiverFlag == 0x3) {
-                    mReceiverFlag = 0;
-                    LocalBroadcastManager.getInstance(getActivity())
-                            .sendBroadcast(new Intent(Utils.ACTION_RECEIVER_FINISH));
+                setEmptyText(getString(R.string.empty));
+                mAdapter.setData(result.apps(isSystem));
+                if (result.partial && getUserVisibleHint()) {
+                    Toast.makeText(mContext, R.string.component_load_partial, Toast.LENGTH_LONG).show();
                 }
             }
-        }
-
-        @Override
-        protected List<AppEntry> doInBackground(Void... params) {
-            //这段代码会卡主线程
-            if (type == 1) {
-                synchronized (AppForComponentRecyclerFragment.this) {
-                    if (mReceiverFlag == 0) {
-                        SQLiteDatabase db = DBHelper.getInstance(mContext).getWritableDatabase();
-                        db.delete(DBHelper.APPS_TABLE_NAME, null, null);
-                    }
-                }
+            setListShown(true, isResumed());
+            if (listState != null && getRecyclerListView() != null) {
+                getRecyclerListView().getLayoutManager().onRestoreInstanceState(listState);
+                listState = null;
             }
-
-            return Utils.getAppsWithType(mContext, isSystem, type);
-        }
+        });
     }
 
-    @Override
-    public void onStop() {
-        super.onStop();
-        if (type == 0) {
-            LocalBroadcastManager.getInstance(mContext).unregisterReceiver(mChangeReceiver);
-        }
-    }
-
-    @Override
-    public void onResume() {
+    @Override public void onResume() {
         super.onResume();
         if (type == 0) {
-            if (mChangeReceiver == null) {
-                mChangeReceiver = new SortChangeReceiver();
-            }
-
+            if (mChangeReceiver == null) mChangeReceiver = new SortChangeReceiver();
             LocalBroadcastManager.getInstance(mContext).registerReceiver(mChangeReceiver,
                     new IntentFilter(Utils.ACTION_SORT_CHANGE));
         }
     }
 
-    @Override
-    public void onDestroyView() {
+    @Override public void onStop() {
+        if (mChangeReceiver != null) LocalBroadcastManager.getInstance(mContext).unregisterReceiver(mChangeReceiver);
+        super.onStop();
+    }
+
+    @Override public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString("componentQuery", queryBefore);
+        outState.putParcelable("componentScroll", scrollState());
+    }
+
+    private Parcelable scrollState() {
+        return getRecyclerListView() == null ? listState
+                : getRecyclerListView().getLayoutManager().onSaveInstanceState();
+    }
+
+    @Override public void onDestroyView() {
+        listState = scrollState();
+        viewGeneration++;
+        if (unsubscribe != null) unsubscribe.run();
+        unsubscribe = null;
+        if (ownsSession && session != null) session.close();
+        session = null;
+        searchView = null;
         super.onDestroyView();
-        if (mTask != null) {
-            mTask.cancel(true);
-            mTask = null;
-        }
-        if (loadServiceTask != null) {
-            loadServiceTask.cancel(true);
-        }
     }
 
     private class SortChangeReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (Utils.ACTION_SORT_CHANGE.equals(intent.getAction())) {
-                executeTask();
-            }
+        @Override public void onReceive(Context context, Intent intent) {
+            if (Utils.ACTION_SORT_CHANGE.equals(intent.getAction()) && mAdapter != null) mAdapter.resort();
         }
     }
 
-    //参考AppForManageRecyclerFragment
-    @Override
-    public void onPrepareOptionsMenu(Menu menu) {
-        super.onPrepareOptionsMenu(menu);
-
-        if (!TextUtils.isEmpty(queryBefore)) {
-            expandSearchView();
-            searchView.setQuery(queryBefore, false);
-        }
+    @Override public boolean onQueryTextChange(String query) {
+        queryBefore = query;
+        if (mAdapter != null) mAdapter.filter();
+        return true;
     }
 
-    private CharSequence queryBefore;
-
-    @Override
-    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-        if (type == 0) {
-            MenuItem menuItem = menu.add(0, R.id.menu_sort_id, 0,
-                    R.string.sort_by);
-            menuItem.setIcon(R.drawable.ic_sort_white);
-            MenuItemCompat
-                    .setShowAsAction(
-                            menuItem,
-                            MenuItemCompat.SHOW_AS_ACTION_IF_ROOM
-                                    | MenuItemCompat.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW);
-        }
-
-        if (searchView != null && !TextUtils.isEmpty(searchView.getQuery())) {
-            queryBefore = searchView.getQuery();
-        }
-
+    @Override public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        String query = queryBefore;
         super.onCreateOptionsMenu(menu, inflater);
-        if (!BuildConfig.isFree) {
-            menu.findItem(R.id.search_component_in_all_apps).setVisible(true);
+        menu.add(0, R.id.component_refresh, 0, R.string.component_refresh);
+        if (type == 0) {
+            MenuItem item = menu.add(0, R.id.menu_sort_id, 0, R.string.sort_by);
+            item.setIcon(R.drawable.ic_sort_white);
+            MenuItemCompat.setShowAsAction(item, MenuItemCompat.SHOW_AS_ACTION_IF_ROOM);
+        }
+        if (!BuildConfig.isFree) menu.findItem(R.id.search_component_in_all_apps).setVisible(true);
+        if (!TextUtils.isEmpty(query) && searchView != null) {
+            expandSearchView();
+            searchView.setQuery(query, false);
         }
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.menu_sort_id:
-                SortDialogFragment dialog = new SortDialogFragment();
-                dialog.show(getChildFragmentManager(), "sort");
-                break;
-            case R.id.search_component_in_all_apps:
-                Fragment fragment = SearchComponentInAllFragment.newInstance(type);
-                FragmentTransaction ft = getActivity().getSupportFragmentManager().beginTransaction();
-                ft.replace(R.id.content, fragment);
-                ft.setTransition(FragmentTransaction.TRANSIT_NONE);
-                ft.addToBackStack(null);
-                ft.commit();
-                break;
-            default:
-                break;
+    @Override public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.component_refresh) {
+            if (session != null) {
+                listState = scrollState();
+                setListShown(false, true);
+                session.refresh();
+            }
+            return true;
+        }
+        if (item.getItemId() == R.id.menu_sort_id) {
+            new SortDialogFragment().show(getChildFragmentManager(), "sort");
+            return true;
+        }
+        if (item.getItemId() == R.id.search_component_in_all_apps) {
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.content, SearchComponentInAllFragment.newInstance(type))
+                    .setTransition(FragmentTransaction.TRANSIT_NONE).addToBackStack(null).commit();
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }
-
     public static class SortDialogFragment extends DialogFragment {
         @NonNull
         @Override
@@ -290,10 +234,11 @@ public class AppForComponentRecyclerFragment extends SearchRecyclerListFragment
 
         // FIXME: 2019-04-23 trick，没办法啊
         if (searchView != null) {
-            queryBefore = searchView.getQuery();
+            queryBefore = searchView.getQuery().toString();
         }
 
-        AppEntry entry = (AppEntry) mAdapter.getItem(position);
+        if (position < 0 || position >= mAdapter.getItemCount()) return;
+        AppEntry entry = mAdapter.getItem(position);
         try {
             mContext.getPackageManager().getPackageInfo(
                     entry.packageName, 0);
@@ -308,7 +253,7 @@ public class AppForComponentRecyclerFragment extends SearchRecyclerListFragment
         Bundle args = new Bundle();
         args.putString("packageName", entry.packageName);
         args.putString("title", entry.label);
-        clicked_pos = position;
+
 
         Fragment fragment;
         switch (type) {
@@ -334,218 +279,94 @@ public class AppForComponentRecyclerFragment extends SearchRecyclerListFragment
     }
 
     private class VHolder extends RecyclerView.ViewHolder {
-        ImageView icon;
-        TextView nameText;
-        TextView totalNum;
-        TextView disableNum;
-        TextView runningNum;
+        final ImageView icon;
+        final TextView name;
+        final TextView total;
+        final TextView disabled;
+        final TextView running;
+        final TextView ifw;
 
-        public VHolder(View itemView) {
-            super(itemView);
-            icon = (ImageView) itemView.findViewById(R.id.icon);
-            nameText = (TextView) itemView
-                    .findViewById(R.id.name);
-            totalNum = (TextView) itemView
-                    .findViewById(R.id.total_num);
-            disableNum = (TextView) itemView
-                    .findViewById(R.id.disabled_num);
-            runningNum = (TextView) itemView
-                    .findViewById(R.id.running_num);
-
-            itemView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    onItemClick(getLayoutPosition(), view);
-                }
+        VHolder(View view) {
+            super(view);
+            icon = view.findViewById(R.id.icon);
+            name = view.findViewById(R.id.name);
+            total = view.findViewById(R.id.total_num);
+            disabled = view.findViewById(R.id.disabled_num);
+            running = view.findViewById(R.id.running_num);
+            ifw = view.findViewById(R.id.ifw_num);
+            boolean dark = PreferenceManager.getDefaultSharedPreferences(mContext)
+                    .getInt(BaseActivity.PREFERENCE_THEME, 0) > 0;
+            ifw.setTextColor(ContextCompat.getColor(mContext, dark
+                    ? R.color.component_ifw_count_dark : R.color.component_ifw_count_light));
+            view.setOnClickListener(v -> {
+                int position = getAdapterPosition();
+                if (position != RecyclerView.NO_POSITION) onItemClick(position, v);
             });
         }
     }
 
-    private class ComponentAdapter extends RecyclerView.Adapter<VHolder> implements Filterable {
-        private Context context;
-        private List<AppEntry> list;
-        private List<AppEntry> originalData;
-        private final Object mLock = new Object();
-        private AppFilter mFilter;
+    private class ComponentAdapter extends RecyclerView.Adapter<VHolder> {
+        private final List<AppEntry> all = new ArrayList<>();
+        private final List<AppEntry> visible = new ArrayList<>();
+        private final Handler main = new Handler(Looper.getMainLooper());
+        private int dataGeneration;
 
-        public ComponentAdapter(Context context) {
-            super();
-            this.context = context;
-            list = new ArrayList<>();
+        void setData(List<AppEntry> entries) {
+            dataGeneration++;
+            all.clear();
+            all.addAll(entries);
+            filter();
         }
 
-        public void setData(List<AppEntry> list) {
-            this.list.clear();
-            if (list != null) {
-                this.list.addAll(list);
-            }
+        void resort() {
+            final int version = ++dataGeneration;
+            final int viewVersion = viewGeneration;
+            final List<AppEntry> sorted = new ArrayList<>(all);
+            AsyncTask.THREAD_POOL_EXECUTOR.execute(() -> {
+                ComponentListLoader.sortApps(mContext, sorted, type);
+                main.post(() -> {
+                    if (version != dataGeneration || viewVersion != viewGeneration || getView() == null) return;
+                    all.clear();
+                    all.addAll(sorted);
+                    filter();
+                });
+            });
+        }
 
-            if (originalData != null) {
-                originalData.clear();
-                originalData = null;
+        void filter() {
+            visible.clear();
+            Locale locale = mContext.getResources().getConfiguration().locale;
+            String query = queryBefore.toLowerCase(locale);
+            for (AppEntry entry : all) {
+                if (entry.label.toLowerCase(locale).contains(query)) visible.add(entry);
             }
             notifyDataSetChanged();
         }
 
-        public Object getItem(int position) {
-            return list.get(position);
+        AppEntry getItem(int position) { return visible.get(position); }
+        @Override public int getItemCount() { return visible.size(); }
+
+        @Override public VHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            return new VHolder(LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_app_list_for_component, parent, false));
         }
 
-        @Override
-        public VHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            return new VHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_app_list_for_component, parent, false));
-        }
-
-        @Override
-        public void onBindViewHolder(VHolder holder, int position) {
-            AppEntry entry = list.get(position);
+        @Override public void onBindViewHolder(VHolder holder, int position) {
+            AppEntry entry = visible.get(position);
             Utils.loadApkIcon(AppForComponentRecyclerFragment.this, entry.packageName, holder.icon);
-            holder.nameText.setText(entry.label);
-            holder.totalNum.setText("" + entry.totalNum);
-
-            if (entry.disabledNum == 0) {
-                holder.disableNum.setVisibility(View.INVISIBLE);
-            } else {
-                holder.disableNum.setVisibility(View.VISIBLE);
-                holder.disableNum.setText("" + entry.disabledNum);
-            }
-
-            int runningNum = entry.runningNum;
-            if (runningNum == 0) {
-                holder.runningNum.setVisibility(View.GONE);
-            } else {
-                holder.runningNum.setVisibility(View.VISIBLE);
-                holder.runningNum.setText("" + runningNum);
-            }
-        }
-
-        @Override
-        public int getItemCount() {
-            return list.size();
-        }
-
-        public void updateLine(final int position, final int type) {
-            if (position < 0 || list == null || position > list.size() - 1) {
-                return;
-            }
-
-            if (Utils.isPmByIfw(mContext)) {
-                return;
-            }
-
-            if (loadServiceTask != null) {
-                loadServiceTask.cancel(true);
-            }
-            loadServiceTask = new AsyncTask<Integer, Void, Integer>() {
-//                    private CustomProgressDialogFragment dialog;
-
-                private boolean checkPositionValid(int position) {
-                    return position >= 0 && position < getItemCount();
-                }
-
-                @Override
-                protected Integer doInBackground(Integer... params) {
-                    final int position = params[0];
-                    if (!checkPositionValid(position)) {
-                        return -1;
-                    }
-                    AppEntry entry = (AppEntry) getItem(position);
-                    entry.disabledNum = Utils.getDisabledNum(type, entry.packageName, context);
-                    // 只有service才需要
-                    if (type == 0) {
-                        entry.runningNum = Utils.getRunningNum(entry.packageName,
-                                Utils.getRunningServiceInfos(context, entry.packageName));
-                    }
-                    //此处为异步处理，可能执行到这里时list已经变了
-                    if (!checkPositionValid(position)) {
-                        return -1;
-                    }
-                    list.set(position, entry);
-                    return position;
-                }
-
-//                    @Override
-//                    protected void onPreExecute() {
-//                        super.onPreExecute();
-//                        dialog = new CustomProgressDialogFragment();
-//                        dialog.show(getChildFragmentManager(), "service_for_o");
-//                    }
-
-//                    @Override
-//                    protected void onCancelled() {
-//                        super.onCancelled();
-//                        if (dialog != null && dialog.isAdded()) {
-//                            dialog.dismissAllowingStateLoss();
-//                        }
-//                    }
-
-                @Override
-                protected void onPostExecute(Integer pos) {
-                    super.onPostExecute(pos);
-//                        if (dialog != null && dialog.isAdded()) {
-//                            dialog.dismissAllowingStateLoss();
-//                        }
-
-                    if (pos >= 0) {
-                        notifyItemChanged(pos);
-                    }
-                }
-            };
-            loadServiceTask.execute(position);
-        }
-
-        @Override
-        public Filter getFilter() {
-            if (mFilter == null) {
-                mFilter = new AppFilter();
-            }
-            return mFilter;
-        }
-
-        private class AppFilter extends Filter {
-            @Override
-            protected void publishResults(CharSequence constraint,
-                                          Filter.FilterResults results) {
-                list = (List<AppEntry>) results.values;
-                notifyDataSetChanged();
-            }
-
-            @Override
-            protected FilterResults performFiltering(CharSequence constraint) {
-                final FilterResults results = new FilterResults();
-                if (originalData == null) {
-                    synchronized (mLock) {
-                        originalData = new ArrayList<>(list);
-                    }
-                }
-
-                List<AppEntry> tempList;
-                if (TextUtils.isEmpty(constraint)) {
-                    synchronized (mLock) {
-                        tempList = new ArrayList<>(originalData);
-                    }
-                    results.values = tempList;
-                    results.count = tempList.size();
-                } else {
-                    synchronized (mLock) {
-                        tempList = new ArrayList<>(originalData);
-                    }
-
-                    final List<AppEntry> newValues = new ArrayList<>();
-                    String lowercaseQuery = constraint.toString().toLowerCase();
-                    for (AppEntry entry : tempList) {
-                        if (entry.label.toLowerCase(Locale.getDefault())
-                                .contains(lowercaseQuery)) {
-                            newValues.add(entry);
-                        }
-                    }
-
-                    results.values = newValues;
-                    results.count = newValues.size();
-                }
-
-                return results;
-            }
+            holder.name.setText(entry.label);
+            holder.total.setText(Integer.toString(entry.totalNum));
+            holder.ifw.setVisibility(showIfwCounts ? entry.ifwNum > 0 ? View.VISIBLE : View.INVISIBLE : View.GONE);
+            holder.ifw.setText(entry.ifwNum < 0 ? getString(R.string.component_status_unknown)
+                    : Integer.toString(entry.ifwNum));
+            holder.ifw.setContentDescription(entry.ifwNum < 0 ? getString(R.string.component_ifw_unknown)
+                    : getString(R.string.component_ifw_count_description, entry.ifwNum));
+            holder.disabled.setVisibility(entry.disabledNum > 0 ? View.VISIBLE : View.INVISIBLE);
+            holder.disabled.setText(entry.disabledNum < 0 ? getString(R.string.component_status_unknown)
+                    : Integer.toString(entry.disabledNum));
+            holder.running.setVisibility(entry.runningNum == 0 ? View.GONE : View.VISIBLE);
+            holder.running.setText(entry.runningNum < 0 ? getString(R.string.component_status_unknown)
+                    : Integer.toString(entry.runningNum));
         }
     }
 }

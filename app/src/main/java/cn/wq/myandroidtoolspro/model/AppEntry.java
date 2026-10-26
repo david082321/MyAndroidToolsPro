@@ -7,4 +7,5 @@ public class AppEntry {
     public int totalNum;
     public int disabledNum;
     public int runningNum;
+    public int ifwNum;
 }

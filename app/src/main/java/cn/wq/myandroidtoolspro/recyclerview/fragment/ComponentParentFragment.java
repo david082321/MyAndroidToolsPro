@@ -1,29 +1,23 @@
 package cn.wq.myandroidtoolspro.recyclerview.fragment;
 
-import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import cn.wq.myandroidtoolspro.R;
-import cn.wq.myandroidtoolspro.helper.Utils;
-import cn.wq.myandroidtoolspro.helper.ShizukuUtil;
+import cn.wq.myandroidtoolspro.component.ComponentListLoader;
 import cn.wq.myandroidtoolspro.recyclerview.toolbar.BaseFragment;
-import eu.chainfire.libsuperuser.Shell;
 
-public class ComponentParentFragment extends BaseFragment{
+public class ComponentParentFragment extends BaseFragment implements ComponentListLoader.Host {
     private int type;
-    private AsyncTask<Void,Void,Boolean> checkRootTask;
-    private boolean hasCheckRoot;
+    private ComponentListLoader.Session session;
+    private boolean resumedBefore;
 
     public static ComponentParentFragment newInstance(int type){
         ComponentParentFragment f=new ComponentParentFragment();
@@ -61,42 +55,28 @@ public class ComponentParentFragment extends BaseFragment{
 
         final View rootView=inflater.inflate(R.layout.fragment_component_parent,container,false);
 
-        if (type == 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !hasCheckRoot) { //8.0以上获取runningService特殊处理
-            checkRootTask = new AsyncTask<Void, Void, Boolean>() {
-                @Override
-                protected Boolean doInBackground(Void... voids) {
-                    if (Utils.isPmByShizuku(getContext()) && ShizukuUtil.hasPermission()) {
-                        return true;
-                    }
-                    return Shell.SU.available();
-                }
-
-                @Override
-                protected void onPostExecute(Boolean aBoolean) {
-                    super.onPostExecute(aBoolean);
-
-                    if (!aBoolean) {
-                        Toast.makeText(getContext(), R.string.root_failed_to_get_running_service, Toast.LENGTH_LONG).show();
-                    }
-                    hasCheckRoot = true;
-
-                    initViews(rootView); //先不管检测结果
-                }
-            };
-            checkRootTask.execute();
-        }else{
-            initViews(rootView);
-        }
+        resumedBefore = false;
+        initViews(rootView);
 
         return rootView;
     }
 
     @Override
-    public void onDestroy() {
-        super.onDestroy();
-        if (checkRootTask != null) {
-            checkRootTask.cancel(true);
-        }
+    public void onDestroyView() {
+        if (session != null) session.close();
+        session = null;
+        super.onDestroyView();
+    }
+
+    @Override public void onResume() {
+        super.onResume();
+        if (resumedBefore && session != null) session.refresh();
+        resumedBefore = true;
+    }
+
+    @Override public ComponentListLoader.Session getComponentSession() {
+        if (session == null) session = ComponentListLoader.get(getContext()).newSession(type);
+        return session;
     }
 
     private void initViews(View rootView) {

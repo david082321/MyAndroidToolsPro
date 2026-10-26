@@ -45,6 +45,10 @@ public class RecyclerListView extends RecyclerView{
 
     @Override
     public void setAdapter(Adapter adapter) {
+        Adapter previous = getAdapter();
+        if (previous != null) {
+            previous.unregisterAdapterDataObserver(mDataObserver);
+        }
         super.setAdapter(adapter);
 
         if (adapter != null) {

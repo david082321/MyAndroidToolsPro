@@ -98,6 +98,9 @@ public class RecyclerListFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
+        if (mList != null) {
+            mList.setAdapter(null);
+        }
         mListContainer = mProgressContainer = mEmptyTv = null;
         mProgressBar = null;
         mList = null;
