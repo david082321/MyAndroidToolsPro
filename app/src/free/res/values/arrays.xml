@@ -78,8 +78,9 @@
     </string-array>
     <string-array name="language_options" tools:ignore="MissingTranslation">
         <item>English</item>
-        <item>中文</item>
+        <item>简体中文</item>
         <item>русский</item>
+        <item>繁體中文</item>
     </string-array>
     <string-array name="donate_options" tools:ignore="MissingTranslation">
         <item>Alipay</item>

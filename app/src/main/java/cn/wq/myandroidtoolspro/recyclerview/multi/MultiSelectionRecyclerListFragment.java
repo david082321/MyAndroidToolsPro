@@ -40,6 +40,7 @@ import cn.wq.myandroidtoolspro.BaseActivity;
 import cn.wq.myandroidtoolspro.R;
 import cn.wq.myandroidtoolspro.helper.IfwUtil;
 import cn.wq.myandroidtoolspro.helper.Utils;
+import cn.wq.myandroidtoolspro.helper.ShizukuUtil;
 import cn.wq.myandroidtoolspro.model.ComponentEntry;
 import cn.wq.myandroidtoolspro.model.ServiceEntry;
 import cn.wq.myandroidtoolspro.recyclerview.adapter.AbstractComponentAdapter;
@@ -49,8 +50,6 @@ import cn.wq.myandroidtoolspro.recyclerview.fragment.AppInfoForManageFragment2;
 import cn.wq.myandroidtoolspro.recyclerview.fragment.CustomProgressDialogFragment;
 import cn.wq.myandroidtoolspro.recyclerview.fragment.ServiceRecyclerListFragment;
 import eu.chainfire.libsuperuser.Shell;
-import moe.shizuku.api.ShizukuClient;
-import moe.shizuku.api.ShizukuPackageManagerV26;
 
 public abstract class MultiSelectionRecyclerListFragment<T extends ComponentEntry>
         extends RecyclerListFragment
@@ -657,8 +656,8 @@ public abstract class MultiSelectionRecyclerListFragment<T extends ComponentEntr
                     newState = PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
                 }
                 try {
-                    Utils.debug(TAG,"shizuku isAuthorized:"+ ShizukuClient.getState().isAuthorized());
-                    ShizukuPackageManagerV26.setComponentEnabledSetting(
+                    Utils.debug(TAG,"shizuku isAuthorized:"+ ShizukuUtil.hasPermission());
+                    ShizukuUtil.setComponentEnabledSetting(
                             cName,
                             newState,
 //                            PackageManager.DONT_KILL_APP,

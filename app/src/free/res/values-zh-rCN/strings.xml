@@ -15,6 +15,8 @@
     <string name="apps">应用程序</string>
     <string name="about">关于</string>
 
+    <string name="drawer_open">抽屉开启</string>
+    <string name="drawer_close">抽屉关闭</string>
     <string name="toast_adb">在2.3或之前的Android版本中，您必须打开USB调试!</string>
     <string name="wait">正在处理中&#8230;</string>
 
@@ -30,12 +32,21 @@
     <string name="ok">确定</string>
     <string name="cancel">取消</string>
     <string name="clear">清除</string>
+
+
     <string name="rate">评价</string>
     <string name="share">分享</string>
     <string name="donate">捐赠</string>
     <string name="failed_to_gain_root">获取root权限失败!</string>
+
     <string name="full_or_short">全称/缩写</string>
     <string name="disallow_disable_admob">不允许禁用admob activity.</string>
+    <string name="level_default">详细模式(默认)</string>
+    <string name="level_debug">调试</string>
+    <string name="level_info">信息</string>
+    <string name="level_warn">警告</string>
+    <string name="level_error">错误</string>
+    <string name="level_assert">断言</string>
     <string name="format_save_path">保存路径为：%s</string>
     <string name="more">更多</string>
     <string name="need_external_storage">没有发现存储卡!</string>
@@ -62,6 +73,7 @@
     <string name="operation_failed">操作失败!</string>
     <string name="uninstall_restore_success_toast">这个app将会在你下一次重启手机之后出现在你的手机上.</string>
     <string name="operation_done">已完成!</string>
+    <string name="backup_done">备份成功！备份路径为 %s</string>
     <string name="backup_category">仅针对已禁用的组件：</string>
     <string name="app_has_been_uninstalled">此app已被卸载.</string>
     <string name="detail">详细</string>
@@ -96,6 +108,10 @@
     <!-- logcat -->
     <string name="pre_process_name">进程名：%s</string>
     <string name="pre_pkg_list">包名：</string>
+    <string name="pre_importance">重要性：%s</string>
+    <string name="pre_pss_memory">PSS 内存占用：%.2f MB</string>
+    <string name="pre_rss_memory">RSS 内存占用：%.2f MB</string>
+    <string name="pre_tag">标签：</string>
     <string name="pre_level">等级：</string>
     <string name="pre_application">应用名称：</string>
     <string name="pre_time">时间：%s</string>
@@ -108,11 +124,14 @@
     <string name="disabled">已禁用</string>
     <string name="running_in_background">正在后台运行</string>
     <string name="language_english">使用英语环境</string>
+    <string name="choose_language">语言</string>
     <string name="add">添加</string>
     <string name="clone_record">复制数据</string>
     <string name="delete_current_page">删除本页数据</string>
     <string name="delete_current_page_warning">您确认要删除当前页面的所有数据？</string>
     <string name="uninstall">卸载</string>
+    <string name="xposed_module">Xposed 模块：</string>
+    <string name="xposed_module_name">MyAndroidTools Xposed 模块</string>
     <string name="create_table_statement">建表语句</string>
     <string name="search_by_action_name">按事件名称搜索</string>
     <string name="view_manifest">查看manifest</string>
@@ -134,7 +153,6 @@
     <string name="open_database_in_sdcard">打开SDcard中的数据库文件</string>
     <string name="choose_db_from_sdcard">请选择SDcard中的数据库文件</string>
     <string name="invalid_db_file">这不是一个有效的数据库文件.</string>
-    <string name="backup_done">备份成功！备份路径为 %s</string>
 
     <string name="warning">警告</string>
     <string name="uninstall_message">确认是否要卸载此应用：%s</string>
@@ -143,9 +161,9 @@
     <string name="current">当前</string>
     <string name="current_activity_accessibility_service_name">当前Activity（MAT）</string>
     <string name="current_accessibility_service_summary">MyAndroidTools 需要开启本服务才能显示当前Activity。</string>
+    <string name="current_accessibility_service_desc">MyAndroidTools 使用无障碍服务来监测当前 Activity 的变化，并显示其名称。</string>
     <string name="current_activity_title">显示当前Activity</string>
     <string name="current_activity_summary">需要开启无障碍服务</string>
-    <string name="current_activity_summary_root">需要Root权限</string>
 
     <string name="current_fragment_title">显示当前Fragment</string>
     <string name="current_fragment_time_title">间隔时间（毫秒）</string>
@@ -162,6 +180,9 @@
     <string name="floating_permission_hint">您需要先授予本应用“允许出现在其它应用之上”的权限才能使用此功能。</string>
     <string name="textsize">文字大小</string>
     <string name="open_lincense">开放源代码协议</string>
+    <!-- current root -->
+    <string name="current_activity_summary_root">需要Root权限</string>
+
 
     <!-- new -->
     <string name="usage_permission_hint">您需要先授予本应用“允许使用访问记录”的权限才能使用此功能.</string>
@@ -171,7 +192,6 @@
     <string name="component_not_exist">这个组件实际上是不存在的.</string>
     <string name="a_component_not_exist">某个组件实际上是不存在的.</string>
 
-    <string name="choose_language">语言</string>
     <string name="share_information">分享一款Android Root工具：MyAnroidTools。（https://zh.myandroidtools.com）</string>
     <string name="offical_website">https://zh.myandroidtools.com</string>
     <string name="pm_channel">禁用方式</string>
@@ -180,7 +200,6 @@
     <string name="shizuku_run_command_failed">Shizuku调用失败：%s！</string>
     <string name="shizuku_auth_success">Shizuku 授权成功！</string>
     <string name="ifw_save_failed">保存IFW文件失败!</string>
-    <string name="close_bugly">关闭崩溃信息上传</string>
     <string name="update_check">检查更新</string>
     <string name="has_new_version">检测到新版本</string>
     <string name="no_new_version">当前版本已是最新版本</string>
@@ -193,5 +212,4 @@
     <string name="failed_to_load_backup_file">加载此备份文件失败！</string>
     <string name="hint_delete_empty_backup_file">此备份文件中未发现有效的组件，是否删除此文件？</string>
     <string name="hint_pm_channel_ifw">是否需要整合所有IFW数据？</string>
-
 </resources>

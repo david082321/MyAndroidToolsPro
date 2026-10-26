@@ -9,10 +9,7 @@
     <!--<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />-->
     <!--<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />    &lt;!&ndash; targetSdkVersion >= 26 时需要配置此权限，否则无法进行安装app的动作 &ndash;&gt;-->
 
-    <uses-sdk tools:overrideLibrary="android.support.graphics.drawable.animated,com.google.firebase,com.google.firebase.firebase_core,com.google.android.gms,com.google.android.gms.measurement,com.google.android.gms.tasks,com.google.android.gms.measurement.impl,com.google.android.gms.base,com.google.firebase.iid,com.google.firebase.crash,com.google.firebase.firebase_ads,com.google.android.gms.ads.impl,com.google.android.gms.ads,com.google.android.gms.clearcut"/>
-
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23"/>
-    <uses-permission android:name="moe.shizuku.manager.permission.API"/>
     <!--<uses-permission android:name="android.permission.CHANGE_COMPONENT_ENABLED_STATE"/>-->
 
     <application

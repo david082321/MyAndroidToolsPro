@@ -170,10 +170,10 @@ public class MainActivity extends BaseActivity implements GridNavigationView.OnN
 
         //init xlog
         if (BuildConfig.DEBUG) {
-            Xlog.appenderOpen(Xlog.LEVEL_DEBUG, Xlog.AppednerModeAsync, cachePath, logPath, "Mat", null);
+            Xlog.appenderOpen(Xlog.LEVEL_DEBUG, Xlog.AppednerModeAsync, cachePath, logPath, "Mat", 0, null);
             Xlog.setConsoleLogOpen(true);
         } else {
-            Xlog.appenderOpen(Xlog.LEVEL_INFO, Xlog.AppednerModeAsync, cachePath, logPath, "Mat", null);
+            Xlog.appenderOpen(Xlog.LEVEL_INFO, Xlog.AppednerModeAsync, cachePath, logPath, "Mat", 0, null);
             Xlog.setConsoleLogOpen(false);
         }
 

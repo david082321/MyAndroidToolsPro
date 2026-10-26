@@ -16,7 +16,13 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Mars was published to JCenter; use its mirror for this group only.
+        maven {
+            url 'https://maven.aliyun.com/repository/public'
+            content {
+                includeGroup 'com.tencent.mars'
+            }
+        }
         jcenter()
-        maven { url 'https://dl.bintray.com/rikkaw/Shizuku/' }
     }
 }

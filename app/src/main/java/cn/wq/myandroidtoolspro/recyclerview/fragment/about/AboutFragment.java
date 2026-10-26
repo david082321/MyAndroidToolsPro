@@ -1,8 +1,6 @@
 package cn.wq.myandroidtoolspro.recyclerview.fragment.about;
 
 import android.app.Activity;
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -98,8 +96,7 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
-import moe.shizuku.api.ShizukuClient;
-import moe.shizuku.api.ShizukuPackageManagerV26;
+import rikka.shizuku.Shizuku;
 
 public class AboutFragment extends BaseFragment implements OnClickListener {
     private static final String TAG = "AboutFragment";
@@ -125,6 +122,42 @@ public class AboutFragment extends BaseFragment implements OnClickListener {
     private final static int REQUEST_CODE_SHIZUKU = 250;
     private final static int REQUEST_CODE_IFW_HINT = 251;
     private CompositeDisposable compositeDisposable = new CompositeDisposable();
+    private boolean waitingForShizuku;
+    private boolean permissionRequestInFlight;
+    private final Shizuku.OnRequestPermissionResultListener permissionResultListener =
+            new Shizuku.OnRequestPermissionResultListener() {
+                @Override
+                public void onRequestPermissionResult(int requestCode, int grantResult) {
+                    if (requestCode != REQUEST_CODE_SHIZUKU || !isAdded()) return;
+                    boolean granted = grantResult == PackageManager.PERMISSION_GRANTED && ShizukuUtil.hasPermission();
+                    finishShizukuAuthorization(granted,
+                            granted ? R.string.shizuku_auth_success : R.string.shizuku_auth_failed);
+                }
+            };
+    private final Shizuku.OnBinderReceivedListener binderReceivedListener = new Shizuku.OnBinderReceivedListener() {
+        @Override
+        public void onBinderReceived() {
+            if (waitingForShizuku && isAdded() && pmChannelSpinner != null) requestShizukuAuthorize();
+        }
+    };
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (ShizukuUtil.isSupported()) {
+            Shizuku.addRequestPermissionResultListener(permissionResultListener);
+            Shizuku.addBinderReceivedListenerSticky(binderReceivedListener);
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        pmChannelSpinner = null;
+        waitingForShizuku = false;
+        permissionRequestInFlight = false;
+    }
+
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
@@ -194,6 +227,7 @@ public class AboutFragment extends BaseFragment implements OnClickListener {
                             return;
                         }
                         sharedPreferences.edit().putInt(BaseActivity.PREFERENCE_LANGUAGE, newPos).apply();
+                        LanguageUtils.applyLanguage(mContext.getApplicationContext());
 
 //                        FragmentActivity activity = getActivity();
 //                        activity.finish();
@@ -429,53 +463,22 @@ public class AboutFragment extends BaseFragment implements OnClickListener {
                             f.setTargetFragment(AboutFragment.this, REQUEST_CODE_IFW_HINT);
                             f.show(getFragmentManager(), "ifw_dialog");
                         }
+                        if (newPos != BaseActivity.PM_CHANNEL_SHIZUKU) waitingForShizuku = false;
                         if (sharedPreferences.getInt(BaseActivity.PREFERENCE_PM_CHANNER, BaseActivity.PM_CHANNEL_ROOT_COMMAND) == newPos) {
                             return;
                         }
                         if (newPos == BaseActivity.PM_CHANNEL_ROOT_COMMAND) {
                             sharedPreferences.edit().putInt(BaseActivity.PREFERENCE_PM_CHANNER, newPos).apply();
                         } else if (newPos == BaseActivity.PM_CHANNEL_SHIZUKU) {
-                            if (!ShizukuClient.isManagerInstalled(getContext())) {
-                                pmChannelSpinner.setSelection(0);
-                                Toast.makeText(mContext, R.string.shizuku_not_installed, Toast.LENGTH_SHORT).show();
-                                return;
-                            }
-//                            if (ShizukuClient.getState().isAuthorized()) {
-//                                sharedPreferences.edit().putInt(BaseActivity.PREFERENCE_PM_CHANNER, newPos).apply();
-//                            } else {
-//                                ((MainActivity)getActivity()).requestShizukuAuthorize();
-//                            }
-
-
-                            Disposable disposable = ShizukuUtil.getIsAuthorised(new Consumer() {
-                                @Override
-                                public void accept(Object o) throws Exception {
-                                    sharedPreferences.edit().putInt(BaseActivity.PREFERENCE_PM_CHANNER, newPos).apply();
-                                }
-                            }, new Consumer() {
-                                @Override
-                                public void accept(Object o) throws Exception {
-                                    Utils.debug(TAG, "shizuku isAuthorize: false 1 ..");
-                                    requestShizukuAuthorize();
-                                }
-                            });
-                            compositeDisposable.add(disposable);
-
+                            requestShizukuAuthorize();
                         } else if (newPos == BaseActivity.PM_CHANNEL_IFW) {
                             sharedPreferences.edit().putInt(BaseActivity.PREFERENCE_PM_CHANNER, newPos).apply();
                         }
                     }
                 }
         );
-        if (pmChannel == 1) {
-            Disposable disposable = ShizukuUtil.getIsAuthorised(null, new Consumer() {
-                @Override
-                public void accept(Object o) throws Exception {
-                    Utils.debug(TAG, "shizuku isAuthorize: false 2 ..");
-                    requestShizukuAuthorize();
-                }
-            });
-            compositeDisposable.add(disposable);
+        if (pmChannel == BaseActivity.PM_CHANNEL_SHIZUKU && !ShizukuUtil.hasPermission()) {
+            requestShizukuAuthorize();
         }
 
         return rootView;
@@ -504,13 +507,41 @@ public class AboutFragment extends BaseFragment implements OnClickListener {
         }
     }
 
-    //申请Shizuku授权
     private void requestShizukuAuthorize() {
-        if (ShizukuClient.checkSelfPermission(getContext())) {
-            ShizukuClient.requestAuthorization(this);
-        } else {
-            requestPermissions(new String[]{ShizukuClient.PERMISSION_V23}, REQUEST_CODE_SHIZUKU);
+        waitingForShizuku = true;
+        if (!ShizukuUtil.isSupported()) {
+            finishShizukuAuthorization(false, R.string.shizuku_unsupported);
+            return;
         }
+        if (!Shizuku.pingBinder()) {
+            Toast.makeText(mContext, R.string.shizuku_not_running, Toast.LENGTH_LONG).show();
+            return;
+        }
+        try {
+            if (Shizuku.isPreV11() || Shizuku.getVersion() < 12) {
+                finishShizukuAuthorization(false, R.string.shizuku_unsupported);
+            } else if (ShizukuUtil.hasPermission()) {
+                finishShizukuAuthorization(true, R.string.shizuku_auth_success);
+            } else if (Shizuku.shouldShowRequestPermissionRationale()) {
+                finishShizukuAuthorization(false, R.string.shizuku_auth_failed);
+            } else if (!permissionRequestInFlight) {
+                permissionRequestInFlight = true;
+                Shizuku.requestPermission(REQUEST_CODE_SHIZUKU);
+            }
+        } catch (RuntimeException unavailable) {
+            permissionRequestInFlight = false;
+            Toast.makeText(mContext, R.string.shizuku_not_running, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void finishShizukuAuthorization(boolean granted, int message) {
+        waitingForShizuku = false;
+        permissionRequestInFlight = false;
+        int channel = granted ? BaseActivity.PM_CHANNEL_SHIZUKU : BaseActivity.PM_CHANNEL_ROOT_COMMAND;
+        PreferenceManager.getDefaultSharedPreferences(mContext).edit()
+                .putInt(BaseActivity.PREFERENCE_PM_CHANNER, channel).apply();
+        if (pmChannelSpinner != null) pmChannelSpinner.setSelection(channel);
+        Toast.makeText(mContext, message, Toast.LENGTH_SHORT).show();
     }
 
     private void initSwitchLine(View rootView, boolean isShown, @IdRes int id, @StringRes int titleStrRes, boolean defaultVal, final CompoundButton.OnCheckedChangeListener listener) {
@@ -567,6 +598,15 @@ public class AboutFragment extends BaseFragment implements OnClickListener {
             return null;
         }
         final Spinner spinner = (Spinner) group.getChildAt(spinnerIndex);
+        // Shared row layouts must not restore another setting's selected position.
+        if (id == R.id.english) {
+            spinner.setId(R.id.spinner_language);
+        } else if (id == R.id.theme_parent) {
+            spinner.setId(R.id.spinner_theme);
+        } else if (id == R.id.pm_channel) {
+            spinner.setId(R.id.spinner_pm_channer);
+        }
+        spinner.setSaveEnabled(false);
 //        final Spinner spinner = root.findViewById(R.id.spinner);
 
         String[] options = getResources().getStringArray(optionArrayRes);
@@ -833,30 +873,6 @@ public class AboutFragment extends BaseFragment implements OnClickListener {
                 LicenseDialogFragment f = new LicenseDialogFragment();
                 f.show(getChildFragmentManager(), "license");
                 break;
-            case R.id.bugly:
-                //必须commit
-                PreferenceManager.getDefaultSharedPreferences(mContext)
-                        .edit()
-                        .putBoolean(BaseActivity.PREFERENCE_CLOSE_BUGLY, !item.isChecked())
-                        .commit();
-//                restartActivity();
-
-                Class newCls;
-                if (PreferenceManager.getDefaultSharedPreferences(mContext).getInt(BaseActivity.PREFERENCE_THEME, 0) > 0) {
-                    newCls = MainDarkActivity.class;
-                } else {
-                    newCls = MainActivity.class;
-                }
-                intent = new Intent(mContext, newCls);
-                intent.putExtra("restart", true);
-
-                PendingIntent restartIntent = PendingIntent.getActivity(mContext, 0, intent, PendingIntent.FLAG_ONE_SHOT);
-                AlarmManager mgr = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
-                if (mgr != null) {
-                    mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 100, restartIntent);
-                    android.os.Process.killProcess(android.os.Process.myPid());
-                }
-                break;
             case R.id.updateCheck:
                 checkUpdate();
                 break;
@@ -930,19 +946,6 @@ public class AboutFragment extends BaseFragment implements OnClickListener {
                 });
 
         compositeDisposable.add(disposable);
-    }
-
-    @Override
-    public void onPrepareOptionsMenu(Menu menu) {
-        super.onPrepareOptionsMenu(menu);
-        if (menu == null) {
-            return;
-        }
-        MenuItem menuItem = menu.findItem(R.id.bugly);
-        if (menuItem == null) {
-            return;
-        }
-        menuItem.setChecked(PreferenceManager.getDefaultSharedPreferences(mContext).getBoolean(BaseActivity.PREFERENCE_CLOSE_BUGLY, false));
     }
 
     /**
@@ -1220,36 +1223,8 @@ public class AboutFragment extends BaseFragment implements OnClickListener {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_CODE_SHIZUKU) {
-            if (grantResults.length > 0
-                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                ShizukuClient.requestAuthorization(this);
-            } else if (pmChannelSpinner != null) {
-                pmChannelSpinner.setSelection(0);
-            }
-        }
-    }
-
-    @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == ShizukuClient.REQUEST_CODE_AUTHORIZATION) {
-            if (resultCode == ShizukuClient.AUTH_RESULT_OK && data != null) {
-                PreferenceManager.getDefaultSharedPreferences(getContext())
-                        .edit()
-                        .putInt(BaseActivity.PREFERENCE_PM_CHANNER, 1)
-                        .apply();
-
-                ShizukuClient.setToken(data);
-                Toast.makeText(getContext(), R.string.shizuku_auth_success, Toast.LENGTH_SHORT).show();
-            } else if (pmChannelSpinner != null) {
-                pmChannelSpinner.setSelection(0);
-                Toast.makeText(getContext(), R.string.shizuku_auth_failed, Toast.LENGTH_SHORT).show();
-            }
-            return;
-        }
         if (resultCode == Activity.RESULT_OK) {
             switch (requestCode) {
                 case REQUEST_CODE_BACKUP:
@@ -1649,7 +1624,7 @@ public class AboutFragment extends BaseFragment implements OnClickListener {
                                     PackageManager.COMPONENT_ENABLED_STATE_DISABLED : PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
 
                             try {
-                                ShizukuPackageManagerV26.setComponentEnabledSetting(
+                                ShizukuUtil.setComponentEnabledSetting(
                                         componentName,
                                         newState,
                                         PackageManager.DONT_KILL_APP,
@@ -2155,6 +2130,10 @@ public class AboutFragment extends BaseFragment implements OnClickListener {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        if (ShizukuUtil.isSupported()) {
+            Shizuku.removeRequestPermissionResultListener(permissionResultListener);
+            Shizuku.removeBinderReceivedListener(binderReceivedListener);
+        }
         compositeDisposable.clear();
 
         if (myRestoreTask != null) {

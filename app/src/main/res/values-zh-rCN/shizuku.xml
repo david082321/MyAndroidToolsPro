@@ -1,0 +1,4 @@
+<resources>
+    <string name="shizuku_not_running">请先启动 Shizuku，再在授权窗口允许本应用。</string>
+    <string name="shizuku_unsupported">此 Shizuku 通道需要 Android 7.0 以上及 Shizuku 12 以上。</string>
+</resources>

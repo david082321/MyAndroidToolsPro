@@ -24,10 +24,6 @@
 #picasso
 -dontwarn com.squareup.okhttp.**
 
-#混淆字典
--obfuscationdictionary dic.txt
--classobfuscationdictionary dic.txt
--packageobfuscationdictionary dic.txt
 -repackageclasses
 
 #okhttp
@@ -49,8 +45,6 @@
 #-keepattributes SourceFile,LineNumberTable
 #-keep public class * extends java.lang.Exception
 
--dontwarn com.tencent.bugly.**
--keep public class com.tencent.bugly.**{*;}
 
 
 
@@ -105,7 +99,7 @@
 -keep class * implements cn.wq.myandroidtoolspro.helper.AdHelperInterface
 
 
--dontwarn moe.shizuku.**
+-keep class cn.wq.myandroidtoolspro.shizuku.ShizukuUserService { *; }
 
 
 

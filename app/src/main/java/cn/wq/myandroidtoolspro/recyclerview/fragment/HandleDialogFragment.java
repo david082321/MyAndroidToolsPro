@@ -69,7 +69,6 @@ import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
-import moe.shizuku.api.ShizukuPackageManagerV26;
 
 public class HandleDialogFragment extends DialogFragment {
     private static final String TAG = "HandleDialogFragment";
@@ -545,21 +544,7 @@ public class HandleDialogFragment extends DialogFragment {
      * @param open 是否是打开app（当打开禁用的app时需要先enable）
      */
     private void disable(final boolean open) {
-        if (Utils.isPmByShizuku(mContext)) {
-            ShizukuUtil.getIsAuthorised(new Consumer() {
-                @Override
-                public void accept(Object o) throws Exception {
-                    handleDisable(open, true);
-                }
-            }, new Consumer() {
-                @Override
-                public void accept(Object o) throws Exception {
-                    handleDisable(open, false);
-                }
-            });
-        } else {
-            handleDisable(open, false);
-        }
+        handleDisable(open, Utils.isPmByShizuku(mContext) && ShizukuUtil.hasPermission());
     }
 
     //disable实际操作
@@ -571,12 +556,11 @@ public class HandleDialogFragment extends DialogFragment {
 
             private boolean handleByshizuku() {
                 try {
-                    ShizukuPackageManagerV26.setApplicationEnabledSetting(
+                    ShizukuUtil.setApplicationEnabledSetting(
                             packageNameString,
                             isDisabled ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED : PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                             0,
-                            0,
-                            mContext.getPackageName()
+                            0
                     );
                     return true;
                 } catch (Exception e) {

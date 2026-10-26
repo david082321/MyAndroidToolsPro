@@ -1,10 +1,7 @@
 package cn.wq.myandroidtoolspro;
 
-import android.content.SharedPreferences;
+import android.content.Context;
 import android.content.res.Configuration;
-import android.content.res.Resources;
-import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.LinearLayout;
 
@@ -17,7 +14,6 @@ public class BaseActivity extends AppCompatActivity{
     public final static String PREFERENCE_LANGUAGE="language";
     public final static String PREFERENCE_PACKAGE_RECEIVED="packageReceived";
     public final static String PREFERENCE_PM_CHANNER="pm_channel";
-    public static final String PREFERENCE_CLOSE_BUGLY = "close_bugly";
 
     //    private CharSequence savedTitle;
     public final static int PM_CHANNEL_ROOT_COMMAND = 0;
@@ -25,14 +21,14 @@ public class BaseActivity extends AppCompatActivity{
     public final static int PM_CHANNEL_IFW = 2;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        SharedPreferences sharedPreferences=PreferenceManager.getDefaultSharedPreferences(this);
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(LanguageUtils.wrapContext(newBase));
+    }
 
-        Resources resources=getBaseContext().getResources();
-        Configuration cfg=resources.getConfiguration();
-        cfg.locale= LanguageUtils.getChoosedLocale(sharedPreferences);
-        resources.updateConfiguration(cfg,resources.getDisplayMetrics());
-        super.onCreate(savedInstanceState);
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        LanguageUtils.applyLanguage(this);
     }
 
 //    /**

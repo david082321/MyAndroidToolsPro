@@ -1,0 +1,5 @@
+<resources>
+    <bool name="shizuku_available">false</bool>
+    <string name="shizuku_not_running">Start Shizuku, then allow this app in its authorization dialog.</string>
+    <string name="shizuku_unsupported">This Shizuku integration requires Android 7.0+ and Shizuku 12+.</string>
+</resources>

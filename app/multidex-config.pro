@@ -1,1 +1,1 @@
--keep public class com.tencent.bugly.**{*;}
+-keep class rikka.shizuku.ShizukuProvider { *; }

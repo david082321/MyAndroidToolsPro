@@ -58,8 +58,6 @@ import cn.wq.myandroidtoolspro.glide.ApkIconFetcher;
 import cn.wq.myandroidtoolspro.model.AppEntry;
 import cn.wq.myandroidtoolspro.model.ComponentModel;
 import eu.chainfire.libsuperuser.Shell;
-import moe.shizuku.api.ShizukuActivityManagerV26;
-import moe.shizuku.api.ShizukuClient;
 
 public class Utils {
     private static final String TAG = "Utils";
@@ -477,9 +475,9 @@ public class Utils {
             return aManager.getRunningServices(maxNum);
         } else {
             if (Looper.myLooper() != Looper.getMainLooper()) {
-                if (isPmByShizuku(context) && ShizukuClient.getState().isAuthorized()) {
+                if (isPmByShizuku(context) && ShizukuUtil.hasPermission()) {
                     try {
-                        return ShizukuActivityManagerV26.getServices(maxNum, 0);
+                        return ShizukuUtil.getServices(maxNum);
                     } catch (Exception e) {
                         com.tencent.mars.xlog.Log.e(TAG, "getRunningServiceInfos by shizuku error", e);
                         Utils.err(TAG, "getRunningServiceInfos by shizuku error", e);

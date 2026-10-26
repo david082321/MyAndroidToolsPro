@@ -26,9 +26,4 @@
         android:title="@string/open_lincense"
         app:showAsAction="never" />
 
-    <item
-        android:id="@+id/bugly"
-        android:title="@string/close_bugly"
-        android:checkable="true"
-        app:showAsAction="never" />
 </menu>

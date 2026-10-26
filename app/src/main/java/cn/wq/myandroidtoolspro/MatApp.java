@@ -3,15 +3,15 @@ package cn.wq.myandroidtoolspro;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.os.Build;
-import android.preference.PreferenceManager;
 import android.support.multidex.MultiDexApplication;
 
-import com.tencent.bugly.crashreport.CrashReport;
 import com.tencent.mars.xlog.Log;
 
 import cn.wq.myandroidtoolspro.helper.Utils;
-import moe.shizuku.api.ShizukuClient;
+import cn.wq.myandroidtoolspro.helper.LanguageUtils;
+import cn.wq.myandroidtoolspro.helper.ShizukuUtil;
 
 public class MatApp extends MultiDexApplication implements Thread.UncaughtExceptionHandler {
     private static final String TAG = "MatApp";
@@ -22,24 +22,27 @@ public class MatApp extends MultiDexApplication implements Thread.UncaughtExcept
     public void onCreate() {
         super.onCreate();
 
+        LanguageUtils.applyLanguage(this);
+
         initXlog();
 
         mDefaultHandler = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler(this);
-        if (!PreferenceManager.getDefaultSharedPreferences(this).getBoolean(BaseActivity.PREFERENCE_CLOSE_BUGLY, false)) {
-            CrashReport.UserStrategy strategy = new CrashReport.UserStrategy(getApplicationContext());
-            strategy.setAppChannel(BuildConfig.apk_channel);  //设置渠道
-            CrashReport.initCrashReport(getApplicationContext(), "8278a7dec4", BuildConfig.DEBUG, strategy);
-        }
 
-        ShizukuClient.initialize(this);
+        ShizukuUtil.initialize();
 
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        LanguageUtils.applyLanguage(this);
     }
 
     //https://github.com/Tencent/mars/wiki/Mars-Android-%E6%8E%A5%E5%85%A5%E6%8C%87%E5%8D%97#xlog
     //https://github.com/Tencent/mars/wiki/Mars-Android-%E6%8E%A5%E5%8F%A3%E8%AF%A6%E7%BB%86%E8%AF%B4%E6%98%8E
     private void initXlog() {
-        System.loadLibrary("stlport_shared");
+        System.loadLibrary("c++_shared");
         System.loadLibrary("marsxlog");
     }
 

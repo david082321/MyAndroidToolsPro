@@ -22,11 +22,19 @@
         <item>设备进入睡眠</item>
         <item>屏幕解锁</item>
     </string-array>
+    <string-array name="query_operation">
+        <item>包含</item>
+        <item>=</item>
+        <item>&gt;</item>
+        <item>&gt;=</item>
+        <item>&lt;</item>
+        <item>&lt;=</item>
+    </string-array>
     <string-array name="backup_choose">
         <item>服务</item>
         <item>广播接收器</item>
-        <item>Activity</item>
-        <item>Content Provider</item>
+        <item>活动</item>
+        <item>内容提供器</item>
     </string-array>
     <string-array name="restore_choose">
         <item>禁用</item>
@@ -46,13 +54,5 @@
         <item>已开启</item>
         <item>已禁用</item>
         <item>已卸载(系统app)</item>
-    </string-array>
-    <string-array name="query_operation">
-        <item>包含</item>
-        <item>=</item>
-        <item>&gt;</item>
-        <item>&gt;=</item>
-        <item>&lt;</item>
-        <item>&lt;=</item>
     </string-array>
 </resources>

@@ -16,9 +16,9 @@ import android.widget.Toast;
 
 import cn.wq.myandroidtoolspro.R;
 import cn.wq.myandroidtoolspro.helper.Utils;
+import cn.wq.myandroidtoolspro.helper.ShizukuUtil;
 import cn.wq.myandroidtoolspro.recyclerview.toolbar.BaseFragment;
 import eu.chainfire.libsuperuser.Shell;
-import moe.shizuku.api.ShizukuClient;
 
 public class ComponentParentFragment extends BaseFragment{
     private int type;
@@ -65,7 +65,7 @@ public class ComponentParentFragment extends BaseFragment{
             checkRootTask = new AsyncTask<Void, Void, Boolean>() {
                 @Override
                 protected Boolean doInBackground(Void... voids) {
-                    if (Utils.isPmByShizuku(getContext()) && ShizukuClient.getState().isAuthorized()) {
+                    if (Utils.isPmByShizuku(getContext()) && ShizukuUtil.hasPermission()) {
                         return true;
                     }
                     return Shell.SU.available();
