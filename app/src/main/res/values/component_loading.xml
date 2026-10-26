@@ -1,9 +1,6 @@
 <resources>
     <item type="id" name="component_refresh" />
     <string name="component_refresh">Refresh</string>
-    <string name="component_status_unknown">N/A</string>
     <string name="component_load_failed">Unable to load apps. Please refresh to try again.</string>
-    <string name="component_load_partial">Some information is unavailable. Refresh to try again.</string>
     <string name="component_ifw_count_description">IFW blocked components: %1$d</string>
-    <string name="component_ifw_unknown">IFW blocked count unavailable</string>
 </resources>

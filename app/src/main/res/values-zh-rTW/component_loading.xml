@@ -1,8 +1,5 @@
 <resources>
     <string name="component_refresh">重新整理</string>
-    <string name="component_status_unknown">無法取得</string>
     <string name="component_load_failed">無法載入程式列表，請重新整理後再試。</string>
-    <string name="component_load_partial">部分資訊無法取得，請重新整理後再試。</string>
     <string name="component_ifw_count_description">IFW 攔截元件數量：%1$d</string>
-    <string name="component_ifw_unknown">無法取得 IFW 攔截數量</string>
 </resources>

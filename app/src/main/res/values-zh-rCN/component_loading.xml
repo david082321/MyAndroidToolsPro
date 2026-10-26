@@ -1,8 +1,5 @@
 <resources>
     <string name="component_refresh">刷新</string>
-    <string name="component_status_unknown">无法获取</string>
     <string name="component_load_failed">无法加载应用列表，请刷新重试。</string>
-    <string name="component_load_partial">部分信息无法获取，请刷新重试。</string>
     <string name="component_ifw_count_description">IFW 拦截组件数量：%1$d</string>
-    <string name="component_ifw_unknown">无法获取 IFW 拦截数量</string>
 </resources>

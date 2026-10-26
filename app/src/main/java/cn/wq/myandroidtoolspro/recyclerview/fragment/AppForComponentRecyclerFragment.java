@@ -102,9 +102,6 @@ public class AppForComponentRecyclerFragment extends SearchRecyclerListFragment
             } else {
                 setEmptyText(getString(R.string.empty));
                 mAdapter.setData(result.apps(isSystem));
-                if (result.partial && getUserVisibleHint()) {
-                    Toast.makeText(mContext, R.string.component_load_partial, Toast.LENGTH_LONG).show();
-                }
             }
             setListShown(true, isResumed());
             if (listState != null && getRecyclerListView() != null) {
@@ -357,16 +354,13 @@ public class AppForComponentRecyclerFragment extends SearchRecyclerListFragment
             holder.name.setText(entry.label);
             holder.total.setText(Integer.toString(entry.totalNum));
             holder.ifw.setVisibility(showIfwCounts ? entry.ifwNum > 0 ? View.VISIBLE : View.INVISIBLE : View.GONE);
-            holder.ifw.setText(entry.ifwNum < 0 ? getString(R.string.component_status_unknown)
-                    : Integer.toString(entry.ifwNum));
-            holder.ifw.setContentDescription(entry.ifwNum < 0 ? getString(R.string.component_ifw_unknown)
-                    : getString(R.string.component_ifw_count_description, entry.ifwNum));
+            holder.ifw.setText(entry.ifwNum > 0 ? Integer.toString(entry.ifwNum) : "");
+            holder.ifw.setContentDescription(entry.ifwNum > 0
+                    ? getString(R.string.component_ifw_count_description, entry.ifwNum) : null);
             holder.disabled.setVisibility(entry.disabledNum > 0 ? View.VISIBLE : View.INVISIBLE);
-            holder.disabled.setText(entry.disabledNum < 0 ? getString(R.string.component_status_unknown)
-                    : Integer.toString(entry.disabledNum));
-            holder.running.setVisibility(entry.runningNum == 0 ? View.GONE : View.VISIBLE);
-            holder.running.setText(entry.runningNum < 0 ? getString(R.string.component_status_unknown)
-                    : Integer.toString(entry.runningNum));
+            holder.disabled.setText(entry.disabledNum > 0 ? Integer.toString(entry.disabledNum) : "");
+            holder.running.setVisibility(entry.runningNum > 0 ? View.VISIBLE : View.GONE);
+            holder.running.setText(entry.runningNum > 0 ? Integer.toString(entry.runningNum) : "");
         }
     }
 }
